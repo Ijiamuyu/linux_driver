@@ -1,0 +1,25 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+    fragment@0 {
+        target-path = "/aliases";
+        __overaly__ {
+                spi8 = &virt_spi;
+        };
+    };
+
+    fragment@1 {
+        target-path = "/";
+        __overaly__ {
+            virt_spi: spi@32110000 {
+                compatible = "virtual spi";
+                reg = <0x32110000 0x10000>;
+                num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+                status = "okay";
+            };
+        };
+    };
+};
