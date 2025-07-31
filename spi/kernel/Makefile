@@ -2,7 +2,7 @@
 KDIR := $(KERNEL_DIR)
 
 # 模块名
-obj-m += spi.o
+obj-m += spi_master.o
 
 # 编译目标
 all:

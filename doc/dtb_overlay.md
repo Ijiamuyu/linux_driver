@@ -15,6 +15,13 @@ CONFIG_OF_CONFIGFS = y
 
 `cat /sys/firmware/devicetree/base/soc/i2c@12340000/status`
 
+## 编译dtb
+
+`dtc -I dts -O dtb -o overlay.dtbo overlay.dts`
+
+## 挂载ConfigFS
+`mount x /sys/kernel/config -t configfs`
+
 
 
 # ref

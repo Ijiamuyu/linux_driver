@@ -71,6 +71,64 @@ static struct platform_device virtual_spi_master_device = {
     }
 };
 
+static int virtual_spi_transfer(struct spi_master *master,
+        struct spi_message *msg)
+{
+    virtual_spi_master_info_t *nspi = spi_master_get_devdata(master);
+    struct spi_transfer *t;
+    virtual_spi_dev_info_t *vir_spi_dev_infop;
+    int result = 0;
+    u32 tr_size;
+    u16 reg_addr = 0;
+
+    list_for_each_entry(t, &msg->transfers, transfer_list) {
+        tr_size = t->len;
+        if((t->tx_buf && t->rx_buf)||((t->tx_buf == NULL)&&(t->rx_buf == NULL)) ||(t->len < 4))
+        {
+            result = -EINVAL;
+            break;
+        }
+        reg_addr = 0;
+        if(t->tx_buf)
+        {
+            reg_addr |= ((u8 *)t->tx_buf)[0] << 8;
+            reg_addr |= ((u8 *)t->tx_buf)[1];
+        }
+        else
+        {
+            reg_addr |= ((u8 *)t->rx_buf)[0] << 8;
+            reg_addr |= ((u8 *)t->rx_buf)[1];
+        }
+
+        list_for_each_entry(vir_spi_dev_infop, &nspi->list, node)
+        {
+            if(vir_spi_dev_infop->chip_select == msg->spi->chip_select)
+            {
+                if(reg_addr >= VIRTUAL_SPI_DEV_REGS_NUM)
+                {
+                    result = -EINVAL;
+                    goto done;
+                }
+
+                if(t->rx_buf)
+                {
+                    ((u8 *)t->rx_buf)[2] = vir_spi_dev_infop->regs[reg_addr]>>8;
+                    ((u8 *)t->rx_buf)[3] = vir_spi_dev_infop->regs[reg_addr]&0x00FF;
+                }
+                else
+                {
+                    vir_spi_dev_infop->regs[reg_addr] = ((u8 *)t->tx_buf)[2]<<8|((u8 *)t->tx_buf)[3];
+                }
+            }
+        }
+    }
+
+done:
+    msg->status = result;
+    spi_finalize_current_message(master);
+    return result;
+}
+
 static int virtual_spi_master_setup(struct spi_device *spi)
 {
     int ret = 0;
@@ -89,7 +147,7 @@ static int virtual_spi_master_probe(struct platform_device *platform_dev)
     struct spi_device *spi_dev;
 
     master = spi_alloc_master(&(platform_dev->dev),sizeof(virtual_spi_master_info_t));
-    if (!master) 
+    if (!master)
     {
         printk("%s: unable to alloc SPI master\n", __func__);
         return -EINVAL;
@@ -103,7 +161,7 @@ static int virtual_spi_master_probe(struct platform_device *platform_dev)
     master->transfer_one_message = virtual_spi_transfer;
     master->setup = virtual_spi_master_setup;
     INIT_LIST_HEAD(&nspi->list);
-    if (spi_register_master(master)) 
+    if (spi_register_master(master))
     {
         printk("%s: unable to register SPI master\n", __func__);
         return -EINVAL;

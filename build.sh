@@ -2,7 +2,7 @@
 
 export ARCH=arm64
 export CROSS_COMPILE=aarch64-none-linux-gnu-
-export KERNEL_DIR=/home/jiamuyu/workspace/x5/x5-rdk-gen/source/kernel
+export KERNEL_DIR=/home/jiamuyu-server/workspace/Project/x5-rdk-gen/source/kernel
 
 cmd=$1
 target=$2
@@ -31,7 +31,7 @@ function build_target_kernel()
     cd ${current_dir}/${target}/kernel
     make
     mkdir -p ${current_dir}/out
-    mv ${current_dir}/${target}/kernel/${target}.ko ${current_dir}/out
+    mv ${current_dir}/${target}/kernel/*.ko ${current_dir}/out
 }
 
 function build_target_user()
