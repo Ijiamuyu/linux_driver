@@ -1,66 +1,135 @@
-#include "stdio.h"
-#include "unistd.h"
-#include "sys/types.h"
-#include "sys/stat.h"
-#include "fcntl.h"
-#include "stdlib.h"
-#include "string.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdint.h>
 
-static char usrdata[] = {"usr data!"};
+#define DEV_NAME "/dev/virtual_spidev"
 
-/*
- * @description		: main主程序
- * @param - argc 	: argv数组元素个数
- * @param - argv 	: 具体参数
- * @return 			: 0 成功;其他 失败
- */
+typedef struct __virtual_spi_ioctl_cmd_s
+{
+	uint16_t reg;
+	uint16_t val;
+} virtual_spi_ioctl_cmd_t;
+
+#define DEVICE_MAGIC 'b'
+#define BOARD_SET_REG_VALUE _IOW(DEVICE_MAGIC, 0x01, virtual_spi_ioctl_cmd_t) /* set reg vaule*/
+#define BOARD_GET_REG_VALUE _IOR(DEVICE_MAGIC, 0x02, virtual_spi_ioctl_cmd_t) /* get reg vaule*/
+
+void printf_useage(void)
+{
+	printf("Useage: ./usr_test -w/r  reg_addr -c value\n");
+	printf("-w write value to reg_addr[need append -c set_regname]\n");
+	printf("-r read value from reg_addr\n");
+	return;
+}
+
+typedef enum
+{
+	OP_NONE,
+	OP_READ,
+	OP_WRITE
+} opration_mode_e;
+
 int main(int argc, char *argv[])
 {
-	int fd, retvalue;
-	char *filename;
-	char readbuf[100], writebuf[100];
+	int fd;
+	int ret = 0;
+	int reg_addr = 0;
+	int reg_val = -1;
+	char ch;
+	int action = 0;
 
-	if(argc != 3){
-		printf("Error Usage!\r\n");
-		return -1;
+	virtual_spi_ioctl_cmd_t cmd_info;
+
+	if (argc == 1)
+	{
+		printf_useage();
+		exit(1);
 	}
 
-	filename = argv[1];
-
-	/* 打开驱动文件 */
-	fd  = open(filename, O_RDWR);
-	if(fd < 0){
-		printf("Can't open file %s\r\n", filename);
-		return -1;
-	}
-
-	if(atoi(argv[2]) == 1){ /* 从驱动文件读取数据 */
-		retvalue = read(fd, readbuf, 50);
-		if(retvalue < 0){
-			printf("read file %s failed!\r\n", filename);
-		}else{
-			/*  读取成功，打印出读取成功的数据 */
-			printf("read data:%s\r\n",readbuf);
+	while (((ch = getopt(argc, argv, "hr:w:c:")) != -1) && (optind <= argc))
+	{
+		switch (ch)
+		{
+		case 'w':
+			action = OP_WRITE;
+			reg_addr = atoi(optarg);
+			break;
+		case 'r':
+			action = OP_READ;
+			reg_addr = atoi(optarg);
+			break;
+		case 'c':
+			reg_val = atoi(optarg);
+			break;
+			break;
+		case 'h':
+			printf_useage();
+			exit(1);
+		default:
+			printf_useage();
+			exit(1);
 		}
 	}
 
-	if(atoi(argv[2]) == 2){
- 	/* 向设备驱动写数据 */
-		memcpy(writebuf, usrdata, sizeof(usrdata));
-		retvalue = write(fd, writebuf, 50);
-		if(retvalue < 0){
-			printf("write file %s failed!\r\n", filename);
+	if (action == OP_WRITE)
+	{
+		if (reg_val == -1)
+		{
+			printf("reg addr is invalid\n");
+			return -1;
 		}
 	}
 
-	/* 关闭设备 */
-	retvalue = close(fd);
-	if(retvalue < 0){
-		printf("Can't close file %s\r\n", filename);
+	memset(&cmd_info, 0, sizeof(virtual_spi_ioctl_cmd_t));
+
+	fd = open(DEV_NAME, O_RDWR);
+	if (fd < 0)
+	{
+		printf("%s:open failed\n", __FUNCTION__);
 		return -1;
 	}
+
+	if (action == OP_NONE)
+	{
+		printf("no action, opt error!!!\n");
+		close(fd);
+		return 0;
+	}
+
+	if (action == OP_WRITE)
+	{
+		cmd_info.reg = reg_addr;
+		cmd_info.val = reg_val;
+		ret = ioctl(fd, BOARD_SET_REG_VALUE, &cmd_info);
+		if (ret < 0)
+		{
+			printf("%s:set reg[%d] value failed\n", __FUNCTION__, cmd_info.reg);
+		}
+		else
+		{
+			printf("%s:set reg[%d] value success\n", __FUNCTION__, cmd_info.reg);
+		}
+	}
+	else if (action == OP_READ)
+	{
+		cmd_info.reg = reg_addr;
+		cmd_info.val = 0;
+
+		ret = ioctl(fd, BOARD_GET_REG_VALUE, &cmd_info);
+		if (ret < 0)
+		{
+			printf("%s:get reg[%d] value failed\n", __FUNCTION__, cmd_info.reg);
+		}
+		else
+		{
+			printf("%s:reg[%d]=0x%x \n", __FUNCTION__, cmd_info.reg, cmd_info.val);
+		}
+	}
+	close(fd);
 
 	return 0;
 }
-
-

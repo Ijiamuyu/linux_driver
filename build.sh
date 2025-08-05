@@ -54,7 +54,7 @@ function clean_kernel()
     echo "clean kernel space"
     cd ${current_dir}/${target}/kernel
     make clean
-    rm ${current_dir}/out/*.ko
+    rm -f ${current_dir}/out/*.ko
 }
 
 function clean_user()
@@ -62,7 +62,7 @@ function clean_user()
     echo "clean user space"
     cd ${current_dir}/${target}/user
     make clean
-    rm ${current_dir}/out/app
+    rm -f ${current_dir}/out/app
 }
 
 if [[ "${cmd}" == "build" ]]; then
