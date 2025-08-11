@@ -20,3 +20,5 @@
     - support polling transfer
     - summarize to doc
     - dtb overlay
+
+# suspend spi & i2c task
